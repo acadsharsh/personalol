@@ -1,82 +1,74 @@
 import {
+  date,
+  integer,
   pgTable,
   serial,
   text,
-  varchar,
-  integer,
-  boolean,
   timestamp,
   uniqueIndex,
-  numeric,
 } from "drizzle-orm/pg-core";
 
-// ---------------------------------------------------------------------------
-// scheduleBlocks — the master timetable template, seeded once from the JEE
-// 2027 plan. One row per fixed time-block per weekday (mon..sun). Editable
-// by the user from /schedule so the plan can flex without touching code.
-// ---------------------------------------------------------------------------
-export const scheduleBlocks = pgTable(
-  "schedule_blocks",
+/** One row per IST calendar date — check-in fields + free notes. */
+export const dayLogs = pgTable(
+  "day_logs",
   {
     id: serial("id").primaryKey(),
-    weekday: varchar("weekday", { length: 3 }).notNull(), // mon,tue,wed,thu,fri,sat,sun
-    orderIndex: integer("order_index").notNull(),
-    startTime: varchar("start_time", { length: 5 }).notNull(), // "HH:MM"
-    endTime: varchar("end_time", { length: 5 }).notNull(),
-    activity: text("activity").notNull(),
-    category: varchar("category", { length: 16 }).notNull(), // health|meal|break|study_11|study_12
-    subject: varchar("subject", { length: 16 }), // physics|chemistry|maths|mixed|null
-    grade: varchar("grade", { length: 2 }), // 11|12|null
-    plannedMinutes: integer("planned_minutes").notNull(),
-    isLecture: boolean("is_lecture").notNull().default(false),
-  },
-  (t) => [uniqueIndex("schedule_blocks_weekday_order_idx").on(t.weekday, t.orderIndex)],
-);
-
-// ---------------------------------------------------------------------------
-// dailyLogs — one row per calendar date the user opens/logs.
-// ---------------------------------------------------------------------------
-export const dailyLogs = pgTable(
-  "daily_logs",
-  {
-    id: serial("id").primaryKey(),
-    date: varchar("date", { length: 10 }).notNull(), // "YYYY-MM-DD"
-    weekday: varchar("weekday", { length: 3 }).notNull(),
-    wakeTime: varchar("wake_time", { length: 5 }),
-    sleepHours: numeric("sleep_hours", { precision: 4, scale: 1 }),
-    energy: integer("energy"), // 1-5
-    mood: integer("mood"), // 1-5
+    date: date("date").notNull(),
+    wakeTime: text("wake_time"),
+    sleepTime: text("sleep_time"),
+    energy: integer("energy"), // 1..5
+    mood: text("mood"), // emoji key
     notes: text("notes"),
-    createdAt: timestamp("created_at").notNull().defaultNow(),
-    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
-  (t) => [uniqueIndex("daily_logs_date_idx").on(t.date)],
+  (t) => [uniqueIndex("day_logs_date_key").on(t.date)]
 );
 
-// ---------------------------------------------------------------------------
-// blockLogs — per-block completion status for a given dailyLog.
-// ---------------------------------------------------------------------------
-export const blockLogs = pgTable(
-  "block_logs",
+export type DayLog = typeof dayLogs.$inferSelect;
+
+/** Per-slot log for a day. status: done | partial | skipped */
+export const slotLogs = pgTable(
+  "slot_logs",
   {
     id: serial("id").primaryKey(),
-    dailyLogId: integer("daily_log_id").notNull(),
-    scheduleBlockId: integer("schedule_block_id").notNull(),
-    status: varchar("status", { length: 12 }).notNull().default("pending"), // pending|done|partial|skipped
-    actualMinutes: integer("actual_minutes"),
-    focus: integer("focus"), // 1-5 self-rated concentration
-    note: text("note"),
-    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+    dayLogId: integer("day_log_id")
+      .notNull()
+      .references(() => dayLogs.id, { onDelete: "cascade" }),
+    slotId: text("slot_id").notNull(),
+    status: text("status").notNull().default("none"),
+    minutes: integer("minutes"),
+    notes: text("notes"),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
-  (t) => [uniqueIndex("block_logs_daily_block_idx").on(t.dailyLogId, t.scheduleBlockId)],
+  (t) => [uniqueIndex("slot_logs_day_slot_key").on(t.dayLogId, t.slotId)]
 );
 
-// ---------------------------------------------------------------------------
-// mentorMessages — persisted AI mentor chat history.
-// ---------------------------------------------------------------------------
-export const mentorMessages = pgTable("mentor_messages", {
+export type SlotLog = typeof slotLogs.$inferSelect;
+
+/** Mentor conversation history (single-user personal tracker). */
+export const chatMessages = pgTable("chat_messages", {
   id: serial("id").primaryKey(),
-  role: varchar("role", { length: 10 }).notNull(), // user|assistant
+  role: text("role").notNull(), // "user" | "assistant"
   content: text("content").notNull(),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  provider: text("provider"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });
+
+export type ChatMessage = typeof chatMessages.$inferSelect;
+
+/** Generated AI reviews, keyed by kind + date. */
+export const insights = pgTable(
+  "insights",
+  {
+    id: serial("id").primaryKey(),
+    kind: text("kind").notNull(), // "daily" | "weekly"
+    date: date("date").notNull(),
+    content: text("content").notNull(),
+    provider: text("provider"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (t) => [uniqueIndex("insights_kind_date_key").on(t.kind, t.date)]
+);
+
+export type Insight = typeof insights.$inferSelect;

@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Lakshya JEE 2027 — Daily Tracker</title>
+<style>
+  :root {
+    --bg: #070a14;
+    --card: rgba(15, 20, 38, 0.72);
+    --border: rgba(148, 163, 184, 0.14);
+    --ink: #e2e8f0;
+    --dim: #94a3b8;
+    --faint: #64748b;
+    --accent: #818cf8;
+    --green: #34d399;
+    --amber: #fbbf24;
+    --rose: #fb7185;
+  }
+  * { box-sizing: border-box; scrollbar-width: thin; scrollbar-color: rgba(148,163,184,.25) transparent; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background:
+      radial-gradient(1200px 600px at 85% -10%, rgba(99,102,241,.16), transparent 60%),
+      radial-gradient(900px 500px at -10% 10%, rgba(168,85,247,.10), transparent 55%),
+      var(--bg);
+    color: var(--ink);
+    min-height: 100vh;
+  }
+  ::selection { background: rgba(129,140,248,.35); }
+
+  /* ── header ─────────────────────────────── */
+  header {
+    position: sticky; top: 0; z-index: 50;
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 16px;
+    border-bottom: 1px solid rgba(30,41,59,.6);
+    background: rgba(7,10,20,.85);
+    backdrop-filter: blur(8px);
+    flex-wrap: wrap;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 14px; letter-spacing: -0.01em; }
+  .brand .logo {
+    width: 36px; height: 36px; border-radius: 12px; display: grid; place-items: center; font-size: 18px;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    box-shadow: 0 8px 20px -6px rgba(99,102,241,.5);
+  }
+  .brand small { display: block; font-size: 11px; font-weight: 500; color: var(--faint); }
+  header nav { margin-left: auto; display: flex; gap: 6px; flex-wrap: wrap; }
+  header nav a {
+    text-decoration: none; font-size: 12.5px; font-weight: 600; color: var(--dim);
+    padding: 7px 12px; border-radius: 10px; transition: all .15s;
+  }
+  header nav a:hover { background: rgba(30,41,59,.6); color: var(--ink); }
+  header nav a.active { background: rgba(99,102,241,.15); color: #a5b4fc; }
+  .clock {
+    display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--dim);
+    padding: 6px 12px; border: 1px solid rgba(30,41,59,.8); border-radius: 10px;
+    font-variant-numeric: tabular-nums;
+  }
+  .clock .dot { width: 8px; height: 8px; border-radius: 50%; background: #34d399; animation: pulse 1.6s ease-in-out infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; transform: scale(1);} 50% { opacity: .4; transform: scale(.85);} }
+
+  /* ── layout ─────────────────────────────── */
+  main { max-width: 1100px; margin: 0 auto; padding: 18px 16px 80px; }
+  .toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
+  .toolbar h1 { font-size: 22px; margin: 0 8px 0 4px; letter-spacing: -0.02em; }
+  .toolbar .sub { font-size: 12.5px; color: var(--dim); width: 100%; margin-top: 2px; }
+  .toolbar .sub b { color: #a5b4fc; }
+  .chip {
+    font-size: 12px; font-weight: 700; padding: 6px 12px; border-radius: 999px;
+    background: rgba(15,23,42,.6); border: 1px solid var(--border);
+  }
+  .chip.fire { color: var(--amber); }
+  .chip.save { color: var(--green); }
+  .chip.saving { color: var(--dim); }
+  .note-banner {
+    font-size: 12.5px; line-height: 1.5; color: rgba(253,230,138,.9);
+    border: 1px solid rgba(251,191,36,.25); background: rgba(251,191,36,.06);
+    border-radius: 12px; padding: 10px 14px; margin: 10px 0;
+  }
+  .grid { display: grid; gap: 16px; grid-template-columns: minmax(0,1fr); margin-top: 12px; }
+  @media (min-width: 980px) { .grid { grid-template-columns: minmax(0,1fr) 340px; } }
+
+  .card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+    backdrop-filter: blur(8px); padding: 16px;
+  }
+  .card h2 { font-size: 14px; margin: 0 0 12px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .card h2 .spacer { margin-left: auto; }
+
+  /* ── slot rows ──────────────────────────── */
+  .slot {
+    display: flex; gap: 10px; padding: 10px 12px; border-radius: 12px;
+    border: 1px solid rgba(30,41,59,.8); background: rgba(15,23,42,.35);
+    margin-bottom: 8px; transition: border-color .2s;
+  }
+  .slot:hover { border-color: rgba(51,65,85,.9); }
+  .slot.now { border-color: rgba(99,102,241,.5); background: rgba(99,102,241,.08); }
+  .slot.s-done { border-color: rgba(51,65,85,.5); }
+  .slot.s-skipped { border-color: rgba(251,113,133,.22); background: rgba(251,113,133,.03); opacity: .75; }
+  .slot.s-partial { border-color: rgba(251,191,36,.22); background: rgba(251,191,36,.04); }
+  .slot .rail { width: 10px; border-radius: 99px; align-self: stretch; flex-shrink: 0; margin-top: 4px; height: 10px; }
+  .slot .body { flex: 1; min-width: 0; }
+  .slot .meta { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; font-size: 10.5px; }
+  .slot .time { font-family: ui-monospace, monospace; font-weight: 700; color: var(--faint); font-size: 11px; }
+  .tag { font-size: 9.5px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; padding: 2px 7px; border-radius: 99px; }
+  .tag.now { background: rgba(99,102,241,.25); color: #a5b4fc; animation: pulse 1.6s ease-in-out infinite; }
+  .tag.live { background: rgba(251,113,133,.15); color: #fda4af; }
+  .tag.play { background: rgba(167,139,250,.15); color: #c4b5fd; }
+  .tag.anchor { background: rgba(251,191,36,.15); color: #fcd34d; }
+  .tag.sub { border: 1px solid rgba(51,65,85,.9); color: var(--dim); font-weight: 600; }
+  .slot .title { font-size: 13.5px; font-weight: 600; margin-top: 3px; }
+  .slot.s-skipped .title { color: var(--faint); text-decoration: line-through; text-decoration-color: rgba(251,113,133,.6); }
+  .slot .detail { font-size: 11.5px; color: var(--faint); margin-top: 2px; line-height: 1.45; }
+  .slot .note-text {
+    font-size: 11.5px; font-style: italic; color: var(--dim);
+    background: rgba(30,41,59,.5); border-radius: 8px; padding: 6px 9px; margin-top: 6px;
+  }
+  .slot .row-btns { display: flex; flex-direction: column; gap: 6px; justify-content: center; flex-shrink: 0; }
+  .sbtn {
+    width: 32px; height: 32px; border-radius: 9px; border: 1px solid rgba(51,65,85,.7);
+    background: rgba(30,41,59,.4); color: var(--faint); font-size: 13px; cursor: pointer;
+    display: grid; place-items: center; transition: all .15s;
+  }
+  .sbtn:hover { background: rgba(51,65,85,.7); color: var(--ink); }
+  .sbtn.on-done { border-color: rgba(52,211,153,.6); background: rgba(52,211,153,.18); color: #6ee7b7; }
+  .sbtn.on-partial { border-color: rgba(251,191,36,.6); background: rgba(251,191,36,.18); color: #fcd34d; }
+  .sbtn.on-skipped { border-color: rgba(251,113,133,.6); background: rgba(251,113,133,.18); color: #fda4af; }
+  .sbtn.on-note { border-color: rgba(99,102,241,.6); background: rgba(99,102,241,.18); color: #a5b4fc; }
+
+  input[type=number].min-input, textarea, input[type=time], input[type=text] {
+    background: rgba(2,6,23,.55); border: 1px solid var(--border); border-radius: 10px;
+    color: var(--ink); font-size: 12.5px; padding: 7px 10px; outline: none; width: 100%;
+    font-family: inherit;
+  }
+  input:focus, textarea:focus { border-color: rgba(129,140,248,.6); }
+  .min-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; flex-wrap: wrap; font-size: 11.5px; color: var(--faint); }
+  .min-row input { width: 76px; text-align: center; }
+  .min-chip { border: 1px solid rgba(51,65,85,.9); border-radius: 7px; padding: 3px 8px; cursor: pointer; color: var(--dim); font-size: 10.5px; background: transparent; }
+  .min-chip:hover { color: var(--ink); background: rgba(51,65,85,.5); }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px; border-radius: 10px; font-weight: 600;
+    font-size: 12.5px; padding: 8px 14px; cursor: pointer; border: 1px solid transparent; transition: all .15s;
+    background: rgba(148,163,184,.08); border-color: var(--border); color: var(--dim);
+  }
+  .btn:hover { background: rgba(148,163,184,.14); color: var(--ink); }
+  .btn.primary { background: linear-gradient(135deg,#6366f1,#8b5cf6); color: #fff; border: none; box-shadow: 0 8px 22px -8px rgba(99,102,241,.55); }
+  .btn.primary:hover { filter: brightness(1.1); }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+
+  /* ── stats ring ─────────────────────────── */
+  .ring-row { display: flex; align-items: center; gap: 14px; }
+  .ring { position: relative; width: 120px; height: 120px; flex-shrink: 0; }
+  .ring svg { transform: rotate(-90deg); filter: drop-shadow(0 0 12px rgba(129,140,248,.45)); }
+  .ring .pct { position: absolute; inset: 0; display: grid; place-items: center; font-size: 22px; font-weight: 900; font-variant-numeric: tabular-nums; }
+  .stat-labels { font-size: 11px; color: var(--faint); line-height: 1.6; }
+  .stat-labels .big { font-size: 15px; font-weight: 700; color: var(--ink); }
+  .bar-row { margin-top: 10px; }
+  .bar-row .lbl { display: flex; justify-content: space-between; font-size: 10.5px; color: var(--faint); margin-bottom: 3px; }
+  .bar { height: 7px; border-radius: 99px; background: rgba(30,41,59,.7); overflow: hidden; }
+  .bar i { display: block; height: 100%; border-radius: 99px; transition: width .5s ease; }
+  .weekbars { display: flex; gap: 5px; align-items: flex-end; margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(30,41,59,.7); }
+  .weekbars button { flex: 1; background: transparent; border: none; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 0; }
+  .weekbars .track { width: 100%; height: 52px; background: rgba(30,41,59,.5); border-radius: 7px; display: flex; align-items: flex-end; overflow: hidden; }
+  .weekbars .fill { width: 100%; border-radius: 7px; transition: height .5s ease; }
+  .weekbars span { font-size: 9.5px; font-weight: 700; color: var(--faint); }
+  .weekbars button.cur span { color: #a5b4fc; }
+  .hint { text-align: center; font-size: 10px; color: var(--faint); margin-top: 6px; }
+
+  /* ── check-in ───────────────────────────── */
+  .checkin .lab { font-size: 10.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--faint); margin: 10px 0 5px; }
+  .checkin .lab:first-child { margin-top: 0; }
+  .energy-row { display: flex; gap: 6px; }
+  .energy-row button, .mood-row button {
+    flex: 1; height: 34px; border-radius: 9px; border: 1px solid rgba(51,65,85,.7);
+    background: rgba(30,41,59,.4); color: var(--faint); font-size: 13px; font-weight: 700; cursor: pointer; transition: all .15s;
+  }
+  .energy-row button:hover, .mood-row button:hover { color: var(--ink); }
+  .energy-row button.on, .mood-row button.on { border-color: rgba(251,191,36,.6); background: rgba(251,191,36,.18); color: #fcd34d; }
+  .mood-row button.on { border-color: rgba(99,102,241,.6); background: rgba(99,102,241,.18); color: #a5b4fc; }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+  /* ── insight ────────────────────────────── */
+  .md p { margin: 5px 0; font-size: 12.5px; line-height: 1.6; color: #cbd5e1; }
+  .md ul { margin: 5px 0; padding-left: 2px; list-style: none; }
+  .md li { font-size: 12.5px; line-height: 1.6; color: #cbd5e1; margin: 3px 0; display: flex; gap: 7px; }
+  .md li::before { content: "▸"; color: var(--accent); flex-shrink: 0; }
+  .md strong { color: #c7d2fe; }
+  .md h3 { font-size: 13px; color: #c7d2fe; margin: 8px 0 4px; }
+  .md em { color: var(--dim); }
+  .md code { font-family: ui-monospace, monospace; font-size: 11px; background: rgba(30,41,59,.6); padding: 1px 5px; border-radius: 5px; }
+  .skel { height: 10px; border-radius: 99px; background: rgba(51,65,85,.5); margin: 8px 0; animation: pulse 1.4s ease-in-out infinite; }
+  .badge {
+    font-size: 9px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase;
+    padding: 3px 8px; border-radius: 99px; color: #c4b5fd;
+    border: 1px solid rgba(167,139,250,.3); background: rgba(167,139,250,.1);
+  }
+
+  /* ── chat ───────────────────────────────── */
+  #chatFab {
+    position: fixed; right: 20px; bottom: 20px; z-index: 60;
+    width: 56px; height: 56px; border-radius: 50%; border: none; cursor: pointer;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6); font-size: 24px;
+    box-shadow: 0 12px 30px -6px rgba(99,102,241,.6); transition: transform .15s;
+  }
+  #chatFab:hover { transform: scale(1.06); }
+  #chatFab.unread::after {
+    content: ""; position: absolute; top: 2px; right: 2px; width: 12px; height: 12px;
+    background: #f43f5e; border-radius: 50%; border: 2px solid var(--bg);
+  }
+  #chatPanel {
+    position: fixed; right: 20px; bottom: 88px; z-index: 59;
+    width: min(400px, calc(100vw - 40px)); height: min(560px, calc(100vh - 130px));
+    display: none; flex-direction: column;
+    background: rgba(11,16,32,.97); border: 1px solid var(--border); border-radius: 18px;
+    box-shadow: 0 30px 80px -20px rgba(0,0,0,.7); overflow: hidden;
+  }
+  #chatPanel.open { display: flex; animation: rise .2s ease; }
+  @keyframes rise { from { opacity: 0; transform: translateY(10px);} to { opacity: 1; transform: none;} }
+  .chat-head { display: flex; align-items: center; gap: 10px; padding: 13px 16px; border-bottom: 1px solid rgba(30,41,59,.7); }
+  .chat-head h3 { font-size: 14px; margin: 0; }
+  .chat-head p { margin: 1px 0 0; font-size: 10.5px; color: var(--faint); }
+  .chat-head .badge { margin-left: auto; }
+  #chatMsgs { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+  .msg { max-width: 86%; border-radius: 14px; padding: 10px 13px; font-size: 12.5px; line-height: 1.55; }
+  .msg.user { align-self: flex-end; background: linear-gradient(135deg,#6366f1,#8b5cf6); color: #fff; white-space: pre-wrap; }
+  .msg.bot { align-self: flex-start; background: rgba(15,20,38,.8); border: 1px solid var(--border); }
+  .msg.bot .md p { font-size: 12.5px; color: #cbd5e1; }
+  .msg.bot .md li { font-size: 12.5px; }
+  .typing { display: flex; gap: 5px; padding: 4px 2px; }
+  .typing i { width: 7px; height: 7px; border-radius: 50%; background: #a5b4fc; animation: blink 1.2s infinite; }
+  .typing i:nth-child(2) { animation-delay: .2s; }
+  .typing i:nth-child(3) { animation-delay: .4s; }
+  @keyframes blink { 0%,100% { opacity: .25;} 50% { opacity: 1;} }
+  #chatSug { display: flex; gap: 6px; overflow-x: auto; padding: 0 14px 8px; }
+  #chatSug button {
+    flex-shrink: 0; font-size: 11px; color: var(--dim); border: 1px solid rgba(51,65,85,.8);
+    background: rgba(30,41,59,.4); border-radius: 99px; padding: 6px 11px; cursor: pointer; transition: all .15s;
+  }
+  #chatSug button:hover { border-color: rgba(99,102,241,.5); color: #a5b4fc; }
+  .chat-input { display: flex; gap: 8px; padding: 10px 14px 14px; border-top: 1px solid rgba(30,41,59,.7); }
+  .chat-input textarea { flex: 1; resize: none; }
+
+  footer { text-align: center; font-size: 11px; color: var(--faint); padding: 8px 16px 24px; }
+  footer a { color: #a5b4fc; text-decoration: none; }
+  .error-card { padding: 40px 20px; text-align: center; }
+  @media (max-width: 640px) {
+    .toolbar h1 { font-size: 18px; }
+    .clock { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <span class="logo">🎯</span>
+    <span>Lakshya JEE 2027<small>HTML Daily Tracker · AI Coach</small></span>
+  </div>
+  <nav>
+    <a href="/tracker.html" class="active">📋 Tracker</a>
+    <a href="/stats">📈 Stats</a>
+    <a href="/mentor">🧠 Mentor</a>
+    <a href="/timetable">🗓️ Timetable</a>
+  </nav>
+  <div class="clock"><span class="dot"></span> IST <b id="istClock">--:--:--</b></div>
+</header>
+
+<main>
+  <div class="toolbar">
+    <button class="btn" id="prevDay">←</button>
+    <button class="btn" id="todayBtn">Today</button>
+    <button class="btn" id="nextDay">→</button>
+    <h1 id="dayTitle">…</h1>
+    <span class="chip fire" id="streakChip">🔥 0</span>
+    <span class="chip save" id="saveChip">auto-saved ✓</span>
+    <div class="sub" id="daySub"></div>
+  </div>
+  <div class="note-banner" id="dayNote" style="display:none"></div>
+
+  <div class="grid">
+    <!-- left -->
+    <div>
+      <section class="card">
+        <h2>📋 Today's slots
+          <span class="spacer"></span>
+          <span id="catChips" style="display:flex;gap:6px;flex-wrap:wrap"></span>
+          <button class="btn" id="fastLog" style="padding:6px 10px;font-size:11px">⚡ Fast-log past slots</button>
+        </h2>
+        <div id="slotList"><div class="skel" style="width:100%"></div><div class="skel" style="width:90%"></div><div class="skel" style="width:70%"></div></div>
+      </section>
+    </div>
+
+    <!-- right -->
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <section class="card">
+        <h2>📊 Today's score</h2>
+        <div class="ring-row">
+          <div class="ring">
+            <svg width="120" height="120" viewBox="0 0 120 120">
+              <defs>
+                <linearGradient id="rg" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#6366f1"/><stop offset="100%" stop-color="#c084fc"/>
+                </linearGradient>
+              </defs>
+              <circle cx="60" cy="60" r="52" stroke="rgba(148,163,184,.14)" stroke-width="10" fill="none"/>
+              <circle id="ringFg" cx="60" cy="60" r="52" stroke="url(#rg)" stroke-width="10" fill="none" stroke-linecap="round"
+                stroke-dasharray="326.7" stroke-dashoffset="326.7"/>
+            </svg>
+            <div class="pct" id="ringPct">0%</div>
+          </div>
+          <div class="stat-labels">
+            <div><span class="big" id="stDone">0h</span> of <span id="stPlan">13h</span> study</div>
+            <div id="stSlots">0/0 slots done</div>
+            <div id="stSkipped" style="color:#fda4af"></div>
+          </div>
+        </div>
+        <div class="bar-row" id="g11"><div class="lbl"><span>11th grade</span><span id="g11v">0 / 3h 00m</span></div><div class="bar"><i id="g11b" style="background:#34d399;width:0%"></i></div></div>
+        <div class="bar-row" id="g12"><div class="lbl"><span>12th grade</span><span id="g12v">0 / 10h 00m</span></div><div class="bar"><i id="g12b" style="background:#818cf8;width:0%"></i></div></div>
+        <div class="weekbars" id="weekBars"></div>
+        <p class="hint">last 7 days · tap a bar to jump</p>
+      </section>
+
+      <section class="card checkin">
+        <h2>🌅 Daily check-in</h2>
+        <div class="lab">Energy</div>
+        <div class="energy-row" id="energyRow"></div>
+        <div class="lab">Mood</div>
+        <div class="mood-row" id="moodRow"></div>
+        <div class="two-col">
+          <div><div class="lab">Woke up</div><input type="time" id="wakeIn"></div>
+          <div><div class="lab">Lights out</div><input type="time" id="sleepIn"></div>
+        </div>
+        <div class="lab">Day notes</div>
+        <textarea id="dayNotes" rows="3" placeholder="What worked today? What fought back?"></textarea>
+      </section>
+
+      <section class="card">
+        <h2>🧠 AI Daily Review <span class="spacer"></span><span id="insightBadge"></span><button class="btn" id="genInsight" style="padding:6px 10px;font-size:11px">✨ Generate</button></h2>
+        <div class="md" id="insightBody"><p style="color:var(--faint)">No review yet for this day. Generate one and the AI coach will read every slot you logged and turn it into a plan.</p></div>
+      </section>
+    </div>
+  </div>
+</main>
+
+<footer>
+  Lakshya JEE 2027 · 29 Jun – 29 Nov 2026 · all times IST · 13h/day framework —
+  <a href="/timetable">the machine explained</a>
+</footer>
+
+<button id="chatFab" title="AI Mentor">🧠</button>
+<div id="chatPanel">
+  <div class="chat-head">
+    <span style="font-size:22px">🎯</span>
+    <div>
+      <h3>Lakshya Mentor</h3>
+      <p>Reads your real tracker data — last 7 days</p>
+    </div>
+    <span class="badge" id="chatModel">AI</span>
+    <button class="btn" id="chatClose" style="padding:4px 9px">✕</button>
+  </div>
+  <div id="chatMsgs"></div>
+  <div id="chatSug"></div>
+  <div class="chat-input">
+    <textarea id="chatInput" rows="1" placeholder="Ask your mentor anything… (Enter to send)"></textarea>
+    <button class="btn primary" id="chatSend">Send</button>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* ── helpers ─────────────────────────────────────────────────────────── */
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+function md(text) {
+  const lines = String(text || "").split("\n");
+  let html = "", list = [];
+  const inline = (s) => {
+    let out = "";
+    s.split(/(\*\*[^*]+\*\*|`[^`]+`)/g).forEach((p) => {
+      if (!p) return;
+      if (p.startsWith("**") && p.endsWith("**")) out += "<strong>" + esc(p.slice(2, -2)) + "</strong>";
+      else if (p.startsWith("`") && p.endsWith("`")) out += "<code>" + esc(p.slice(1, -1)) + "</code>";
+      else out += esc(p);
+    });
+    return out;
+  };
+  const flush = () => { if (list.length) { html += "<ul>" + list.join("") + "</ul>"; list = []; } };
+  for (const raw of lines) {
+    const line = raw.trimEnd();
+    if (/^\s*-\s+/.test(line)) { list.push("<li>" + inline(line.replace(/^\s*-\s+/, "")) + "</li>"); continue; }
+    flush();
+    if (!line.trim()) continue;
+    if (/^\*\*[^*]+\*\*$/.test(line.trim())) html += "<h3>" + inline(line.trim()) + "</h3>";
+    else html += "<p>" + inline(line.trim()) + "</p>";
+  }
+  flush();
+  return html;
+}
+
+function istDateKey(d = new Date()) {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata", year: "numeric", month: "2-digit", day: "2-digit" }).format(d);
+}
+function addDays(dateKey, n) {
+  const d = new Date(dateKey + "T00:00:00Z");
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+function fmt(m) {
+  m = ((m % 1440) + 1440) % 1440;
+  return String(Math.floor(m / 60)).padStart(2, "0") + ":" + String(m % 60).padStart(2, "0");
+}
+function durLabel(min) {
+  const h = Math.floor(min / 60), m = min % 60;
+  if (!h) return m + "m";
+  if (!m) return h + "h";
+  return h + "h " + String(m).padStart(2, "0") + "m";
+}
+function pct(n) { return Math.round(n * 100); }
+function prettyDate(dateKey) {
+  const d = new Date(dateKey + "T00:00:00Z");
+  const M = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const W = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+  return W[d.getUTCDay()] + ", " + M[d.getUTCMonth()] + " " + d.getUTCDate();
+}
+
+const CAT = {
+  "12th Study": { dot: "#818cf8", chip: "rgba(99,102,241,.14);color:#a5b4fc;border:1px solid rgba(99,102,241,.3)" },
+  "11th Study": { dot: "#34d399", chip: "rgba(52,211,153,.14);color:#6ee7b7;border:1px solid rgba(52,211,153,.3)" },
+  "Health": { dot: "#fbbf24", chip: "rgba(251,191,36,.14);color:#fcd34d;border:1px solid rgba(251,191,36,.3)" },
+  "Meal": { dot: "#fb7185", chip: "rgba(251,113,133,.14);color:#fda4af;border:1px solid rgba(251,113,133,.3)" },
+  "Break": { dot: "#94a3b8", chip: "rgba(148,163,184,.14);color:#cbd5e1;border:1px solid rgba(148,163,184,.3)" },
+};
+const MOODS = [["😞","Low"],["😐","Meh"],["🙂","Okay"],["😄","Good"],["🔥","On fire"]];
+const SUGGESTIONS = [
+  "How's my week going?",
+  "I keep skipping the 21:00 HW slot",
+  "What should I do right now?",
+  "I'm exhausted — help me recover",
+  "Make a plan to clear my backlog",
+];
+
+/* ── state ───────────────────────────────────────────────────────────── */
+const state = {
+  date: "",
+  data: null,
+  openNote: null,     // slotId with open note textarea
+  saving: false,
+  chatOpen: false,
+  chatBusy: false,
+  chatHistory: [],    // [{role, content}]
+  scrolledToNow: false,
+};
+
+/* ── api ─────────────────────────────────────────────────────────────── */
+async function loadDay(date) {
+  const res = await fetch("/api/day?date=" + encodeURIComponent(date), { cache: "no-store" });
+  if (!res.ok) throw new Error("API " + res.status);
+  state.data = await res.json();
+  state.date = state.data.date;
+}
+async function postDay(body) {
+  const res = await fetch("/api/day", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) return null;
+  return res.json();
+}
+function setSaving(on) {
+  state.saving = on;
+  const el = $("#saveChip");
+  el.textContent = on ? "saving…" : "auto-saved ✓";
+  el.className = "chip save" + (on ? " saving" : "");
+}
+let saveQueue = Promise.resolve();
+function saveNow(body, refresh = true) {
+  setSaving(true);
+  saveQueue = saveQueue.then(async () => {
+    try {
+      const j = await postDay(body);
+      if (j && refresh && !state.openNote) { state.data = j; }
+      else if (j && refresh) { state.data = j; }
+    } catch (e) { /* keep going */ }
+    finally { setSaving(false); }
+  });
+}
+
+/* ── rendering ───────────────────────────────────────────────────────── */
+function renderHeader() {
+  const d = state.data;
+  $("#dayTitle").textContent = d.weekday + ", " + prettyDate(d.date);
+  $("#daySub").innerHTML = "<b>" + esc(d.dayTypeLabel) + "</b> · " + esc(d.headline);
+  $("#streakChip").textContent = "🔥 " + d.streak;
+  const note = $("#dayNote");
+  if (d.note) { note.style.display = "block"; note.textContent = "📌 " + d.note; }
+  else note.style.display = "none";
+  $("#todayBtn").disabled = d.date === istDateKey();
+  document.title = d.weekday + " " + pct(d.stats.adherence) + "% — Lakshya JEE 2027";
+}
+
+function renderChips() {
+  const byCat = {};
+  for (const s of state.data.slots) {
+    if (s.category !== "11th Study" && s.category !== "12th Study") continue;
+    byCat[s.category] = byCat[s.category] || [0, 0];
+    byCat[s.category][1]++;
+    if (s.status === "done") byCat[s.category][0]++;
+  }
+  $("#catChips").innerHTML = Object.entries(byCat).map(([k, v]) => {
+    const c = CAT[k];
+    return '<span style="font-size:10px;font-weight:600;padding:3px 9px;border-radius:99px;' + c.chip + '">' + esc(k.replace(" Study", "")) + " " + v[0] + "/" + v[1] + "</span>";
+  }).join("");
+}
+
+function slotRow(s) {
+  const cat = CAT[s.category] || CAT["Break"];
+  const tags = [];
+  if (s.id === state.data.activeSlotId && state.date === istDateKey()) tags.push('<span class="tag now">● Now</span>');
+  if (s.lecture === "live") tags.push('<span class="tag live">Live</span>');
+  if (s.lecture === "playback") tags.push('<span class="tag play">Playback</span>');
+  if (s.priority) tags.push('<span class="tag anchor">Anchor</span>');
+  if (s.subject) tags.push('<span class="tag sub">' + esc(s.subject) + "</span>");
+  tags.push('<span class="tag sub" style="margin-left:auto;display:none" data-dur>·</span>');
+
+  const isNow = s.id === state.data.activeSlotId && state.date === istDateKey();
+  const cls = "slot" + (isNow ? " now" : "") + (s.status !== "none" ? " s-" + s.status : "");
+
+  let extra = "";
+  if (s.status === "partial") {
+    const mins = s.loggedMinutes ?? Math.round(s.duration * 0.6);
+    extra = '<div class="min-row">' +
+      '<input type="number" class="min-input" min="1" max="' + s.duration + '" value="' + mins + '" data-slot="' + s.id + '">' +
+      '<span>of ' + s.duration + " min</span>" +
+      [0.5, 0.75, 1].map((f) => '<button class="min-chip" data-slot="' + s.id + '" data-min="' + Math.round(s.duration * f) + '">' + Math.round(f * 100) + "%</button>").join("") +
+      "</div>";
+  }
+  if (state.openNote === s.id) {
+    extra = '<div style="margin-top:8px"><textarea class="note-edit" rows="2" data-slot="' + s.id + '" placeholder="What did you actually do? One line is enough…">' + esc(s.notes || "") + "</textarea></div>";
+  } else if (s.status !== "none" && s.notes) {
+    extra = '<div class="note-text">“' + esc(s.notes) + "”</div>";
+  }
+
+  return (
+    '<div class="' + cls + '" id="slot-' + s.id + '">' +
+    '<span class="rail" style="background:' + cat.dot + '"></span>' +
+    '<div class="body">' +
+      '<div class="meta"><span class="time">' + fmt(s.start) + "–" + fmt(s.end) + "</span>" + tags.join("") +
+      '<span class="time" style="margin-left:auto">' + durLabel(s.duration) + "</span></div>" +
+      '<div class="title">' + esc(s.title) + "</div>" +
+      (s.detail ? '<div class="detail">' + esc(s.detail) + "</div>" : "") +
+      extra +
+    "</div>" +
+    '<div class="row-btns">' +
+      '<button class="sbtn' + (s.status === "done" ? " on-done" : "") + '" data-act="done" data-slot="' + s.id + '" title="Done">✓</button>' +
+      '<button class="sbtn' + (s.status === "partial" ? " on-partial" : "") + '" data-act="partial" data-slot="' + s.id + '" title="Partial">◐</button>' +
+      '<button class="sbtn' + (s.status === "skipped" ? " on-skipped" : "") + '" data-act="skipped" data-slot="' + s.id + '" title="Skipped">✕</button>' +
+      '<button class="sbtn' + (state.openNote === s.id ? " on-note" : "") + '" data-act="note" data-slot="' + s.id + '" title="Note">✎</button>' +
+    "</div>" +
+    "</div>"
+  );
+}
+
+function renderSlots() {
+  $("#slotList").innerHTML = state.data.slots.map(slotRow).join("");
+}
+
+function renderStats() {
+  const st = state.data.stats;
+  const p = Math.max(0, Math.min(1, st.adherence));
+  const c = 326.7;
+  $("#ringFg").style.strokeDashoffset = String(c * (1 - p));
+  $("#ringPct").textContent = pct(p) + "%";
+  $("#stDone").textContent = durLabel(st.studyDone);
+  $("#stPlan").textContent = durLabel(st.studyPlanned);
+  $("#stSlots").textContent = st.doneSlots + "/" + st.totalStudySlots + " slots done";
+  $("#stSkipped").textContent = st.skipped > 0 ? st.skipped + " skipped · " + st.partial + " partial" : "";
+
+  const g11 = st.byGrade[11], g12 = st.byGrade[12];
+  const p11 = g11.planned ? g11.done / g11.planned : 0, p12 = g12.planned ? g12.done / g12.planned : 0;
+  $("#g11b").style.width = Math.round(p11 * 100) + "%";
+  $("#g12b").style.width = Math.round(p12 * 100) + "%";
+  $("#g11v").textContent = durLabel(g11.done) + " / " + durLabel(g11.planned);
+  $("#g12v").textContent = durLabel(g12.done) + " / " + durLabel(g12.planned);
+
+  const DAYS = ["S","M","T","W","T","F","S"];
+  $("#weekBars").innerHTML = state.data.week.map((w) => {
+    const isCur = w.date === state.date;
+    let bg = "#334155";
+    if (w.logged) bg = w.adherence >= 0.75 ? "#34d399" : w.adherence > 0 ? "#fbbf24" : "#fb7185";
+    if (isCur) bg = "linear-gradient(to top,#6366f1,#a78bfa)";
+    return '<button class="' + (isCur ? "cur" : "") + '" data-date="' + w.date + '" title="' + w.date + " — " + (w.logged ? pct(w.adherence) + "%" : "not logged") + '">' +
+      '<span class="track"><span class="fill" style="height:' + Math.max(6, Math.round(w.adherence * 100)) + "%;background:" + bg + '"></span></span>' +
+      "<span>" + DAYS[new Date(w.date + "T00:00:00Z").getUTCDay()] + "</span></button>";
+  }).join("");
+}
+
+function renderCheckin() {
+  const log = state.data.log;
+  $("#energyRow").innerHTML = [1,2,3,4,5].map((n) =>
+    '<button data-energy="' + n + '" class="' + (log && log.energy === n ? "on" : "") + '">' + n + "</button>").join("");
+  $("#moodRow").innerHTML = MOODS.map(([k, label]) =>
+    '<button data-mood="' + k + '" title="' + label + '" class="' + (log && log.mood === k ? "on" : "") + '">' + k + "</button>").join("");
+  $("#wakeIn").value = (log && log.wakeTime) || "";
+  $("#sleepIn").value = (log && log.sleepTime) || "";
+  $("#dayNotes").value = (log && log.notes) || "";
+}
+
+function renderAll() {
+  renderHeader();
+  renderChips();
+  renderSlots();
+  renderStats();
+  renderCheckin();
+}
+
+/* ── slot interactions ───────────────────────────────────────────────── */
+let minDebounce = {};
+function debouncedSave(slotId, patch) {
+  const key = slotId + JSON.stringify(Object.keys(patch));
+  clearTimeout(minDebounce[slotId]);
+  minDebounce[slotId] = setTimeout(() => saveNow({ date: state.date, slots: [{ slotId, ...patch }] }, true), 550);
+}
+
+function toggleStatus(slotId, status) {
+  const s = state.data.slots.find((x) => x.id === slotId);
+  if (!s) return;
+  const next = s.status === status ? "none" : status;
+  const patch = { status: next };
+  if (next === "partial" && !s.loggedMinutes) patch.minutes = Math.round(s.duration * 0.6);
+  // optimistic
+  s.status = next;
+  if (patch.minutes != null) s.loggedMinutes = patch.minutes;
+  renderSlots();
+  saveNow({ date: state.date, slots: [{ slotId, ...patch }] }, true);
+}
+
+function refreshFromApi() {
+  return loadDay(state.date).then(renderAll).catch(() => {});
+}
+
+/* ── check-in interactions ───────────────────────────────────────────── */
+let checkinTimer = null;
+function scheduleCheckinSave() {
+  clearTimeout(checkinTimer);
+  checkinTimer = setTimeout(() => {
+    const log = state.data.log;
+    saveNow({
+      date: state.date,
+      fields: {
+        wakeTime: $("#wakeIn").value || null,
+        sleepTime: $("#sleepIn").value || null,
+        energy: log ? log.energy : null,
+        mood: log ? log.mood : null,
+        notes: $("#dayNotes").value || null,
+      },
+    }, true);
+  }, 700);
+}
+
+/* ── AI daily review ─────────────────────────────────────────────────── */
+async function loadInsight() {
+  try {
+    const res = await fetch("/api/ai/insight?kind=daily&date=" + state.date, { cache: "no-store" });
+    const j = await res.json();
+    if (j.insight) {
+      $("#insightBody").innerHTML = md(j.insight.content);
+      $("#insightBadge").textContent = j.insight.provider;
+    } else {
+      $("#insightBody").innerHTML = '<p style="color:var(--faint)">No review yet for this day. Generate one and the AI coach will read every slot you logged and turn it into a plan.</p>';
+      $("#insightBadge").textContent = "";
+    }
+  } catch (e) { /* ignore */ }
+}
+async function generateInsight() {
+  const btn = $("#genInsight");
+  btn.disabled = true;
+  btn.textContent = "Generating…";
+  $("#insightBody").innerHTML = '<div class="skel" style="width:75%"></div><div class="skel" style="width:60%"></div><div class="skel" style="width:45%"></div><p style="font-size:11px;color:var(--faint)">The coach is reading your log…</p>';
+  try {
+    const res = await fetch("/api/ai/insight", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ kind: "daily", date: state.date }),
+    });
+    const j = await res.json();
+    if (!res.ok) throw new Error(j.error || "failed");
+    $("#insightBody").innerHTML = md(j.insight.content);
+    $("#insightBadge").textContent = j.insight.provider;
+  } catch (e) {
+    $("#insightBody").innerHTML = '<p style="color:#fda4af;font-size:12px">Generation failed — try again in a moment.</p>';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "↻ Regenerate";
+  }
+}
+
+/* ── mentor chat ─────────────────────────────────────────────────────── */
+async function loadChatHistory() {
+  try {
+    const res = await fetch("/api/ai/mentor", { cache: "no-store" });
+    const j = await res.json();
+    state.chatHistory = (j.messages || []).map((m) => ({ role: m.role, content: m.content }));
+    renderChat();
+  } catch (e) { /* ignore */ }
+}
+function renderChat() {
+  $("#chatMsgs").innerHTML = state.chatHistory.length
+    ? state.chatHistory.map((m) =>
+        '<div class="msg ' + (m.role === "user" ? "user" : "bot") + '">' +
+        (m.role === "user" ? esc(m.content) : '<div class="md">' + md(m.content) + "</div>") + "</div>").join("")
+    : '<div class="msg bot"><div class="md"><p>I've read your timetable — now tell me how the day actually went. Log a few slots first, then ask me anything: progress, leaks, concepts, or morale.</p></div></div>';
+  $("#chatMsgs").scrollTop = $("#chatMsgs").scrollHeight;
+}
+function appendChat(role, content) {
+  state.chatHistory.push({ role, content });
+  const div = document.createElement("div");
+  div.className = "msg " + (role === "user" ? "user" : "bot");
+  div.innerHTML = role === "user" ? esc(content) : '<div class="md">' + md(content) + "</div>";
+  $("#chatMsgs").appendChild(div);
+  $("#chatMsgs").scrollTop = $("#chatMsgs").scrollHeight;
+  return div;
+}
+async function sendChat(text) {
+  const t = (text || "").trim();
+  if (!t || state.chatBusy) return;
+  $("#chatInput").value = "";
+  state.chatBusy = true;
+  appendChat("user", t);
+  const typing = document.createElement("div");
+  typing.className = "msg bot";
+  typing.innerHTML = '<div class="typing"><i></i><i></i><i></i></div>';
+  $("#chatMsgs").appendChild(typing);
+  $("#chatMsgs").scrollTop = $("#chatMsgs").scrollHeight;
+
+  try {
+    const payload = state.chatHistory.slice(-12).map((m) => ({ role: m.role, content: m.content }));
+    const res = await fetch("/api/ai/mentor", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messages: payload }),
+    });
+    if (!res.ok || !res.body) throw new Error("no stream");
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = "", acc = "", bubble = null;
+
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      const lines = buf.split("\n");
+      buf = lines.pop() || "";
+      for (const line of lines) {
+        const s = line.trim();
+        if (!s) continue;
+        try {
+          const j = JSON.parse(s);
+          if (typeof j.d === "string") {
+            acc += j.d;
+            if (!bubble) {
+              typing.remove();
+              bubble = document.createElement("div");
+              bubble.className = "msg bot";
+              bubble.innerHTML = '<div class="md"></div>';
+              $("#chatMsgs").appendChild(bubble);
+              state.chatHistory.push({ role: "assistant", content: "" });
+            }
+            bubble.querySelector(".md").innerHTML = md(acc);
+            state.chatHistory[state.chatHistory.length - 1].content = acc;
+            $("#chatMsgs").scrollTop = $("#chatMsgs").scrollHeight;
+          }
+          if (j.done) {
+            if (j.provider) $("#chatModel").textContent = j.provider;
+          }
+        } catch (e) { /* partial frame */ }
+      }
+    }
+    if (!bubble) {
+      typing.remove();
+      appendChat("assistant", acc || "I couldn't form a reply — try again.");
+    }
+  } catch (e) {
+    typing.remove();
+    appendChat("assistant", "I couldn't reach my brain just now — try again in a moment.");
+  } finally {
+    state.chatBusy = false;
+  }
+}
+
+/* ── clock ───────────────────────────────────────────────────────────── */
+function tickClock() {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false,
+  }).formatToParts(new Date());
+  const g = (t) => parts.find((p) => p.type === t).value;
+  $("#istClock").textContent = g("hour") + ":" + g("minute") + ":" + g("second");
+}
+
+/* ── event wiring ────────────────────────────────────────────────────── */
+function bindEvents() {
+  $("#prevDay").addEventListener("click", () => goTo(addDays(state.date, -1)));
+  $("#nextDay").addEventListener("click", () => goTo(addDays(state.date, 1)));
+  $("#todayBtn").addEventListener("click", () => goTo(istDateKey()));
+
+  $("#fastLog").addEventListener("click", async () => {
+    const btn = $("#fastLog");
+    btn.disabled = true;
+    const now = state.data.nowMinutes;
+    const toMark = state.data.slots
+      .filter((s) => s.status === "none" && s.end <= now && s.end <= 1440)
+      .map((s) => ({ slotId: s.id, status: "done" }));
+    if (toMark.length) {
+      const j = await postDay({ date: state.date, slots: toMark });
+      if (j) { state.data = j; renderAll(); }
+    }
+    btn.disabled = false;
+  });
+
+  $("#slotList").addEventListener("click", (e) => {
+    const el = e.target.closest("[data-act]");
+    if (!el) return;
+    const slotId = el.dataset.slot;
+    const act = el.dataset.act;
+    if (act === "note") {
+      state.openNote = state.openNote === slotId ? null : slotId;
+      renderSlots();
+      if (state.openNote) {
+        const ta = document.querySelector('.note-edit[data-slot="' + slotId + '"]');
+        if (ta) ta.focus();
+      }
+    } else {
+      toggleStatus(slotId, act);
+    }
+  });
+
+  // partial minutes input (delegated)
+  $("#slotList").addEventListener("input", (e) => {
+    if (e.target.classList.contains("min-input")) {
+      const slotId = e.target.dataset.slot;
+      const s = state.data.slots.find((x) => x.id === slotId);
+      if (!s) return;
+      const v = Math.max(1, Math.min(s.duration, Number(e.target.value) || 1));
+      s.loggedMinutes = v;
+      debouncedSave(slotId, { status: "partial", minutes: v });
+    }
+    if (e.target.classList.contains("note-edit")) {
+      const slotId = e.target.dataset.slot;
+      const s = state.data.slots.find((x) => x.id === slotId);
+      if (s) { s.notes = e.target.value; debouncedSave(slotId, { notes: e.target.value }); }
+    }
+  });
+  $("#slotList").addEventListener("click", (e) => {
+    const chip = e.target.closest(".min-chip");
+    if (chip) {
+      const slotId = chip.dataset.slot;
+      const v = Number(chip.dataset.min);
+      const s = state.data.slots.find((x) => x.id === slotId);
+      if (s) {
+        s.loggedMinutes = v;
+        const inp = document.querySelector('.min-input[data-slot="' + slotId + '"]');
+        if (inp) inp.value = v;
+        debouncedSave(slotId, { status: "partial", minutes: v });
+      }
+    }
+  });
+  $("#slotList").addEventListener("change", (e) => {
+    if (e.target.classList.contains("note-edit")) {
+      state.openNote = null;
+      renderSlots();
+    }
+  });
+
+  // week bar jump
+  $("#weekBars").addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-date]");
+    if (btn) goTo(btn.dataset.date);
+  });
+
+  // check-in
+  $("#energyRow").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-energy]");
+    if (!b) return;
+    if (!state.data.log) state.data.log = { energy: null, mood: null, wakeTime: null, sleepTime: null, notes: "" };
+    state.data.log.energy = state.data.log.energy === Number(b.dataset.energy) ? null : Number(b.dataset.energy);
+    renderCheckin();
+    scheduleCheckinSave();
+  });
+  $("#moodRow").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-mood]");
+    if (!b) return;
+    if (!state.data.log) state.data.log = { energy: null, mood: null, wakeTime: null, sleepTime: null, notes: "" };
+    state.data.log.mood = state.data.log.mood === b.dataset.mood ? null : b.dataset.mood;
+    renderCheckin();
+    scheduleCheckinSave();
+  });
+  ["#wakeIn", "#sleepIn", "#dayNotes"].forEach((sel) => {
+    $(sel).addEventListener("input", () => {
+      if (!state.data.log) state.data.log = { energy: null, mood: null, wakeTime: null, sleepTime: null, notes: "" };
+      scheduleCheckinSave();
+    });
+  });
+
+  // insight
+  $("#genInsight").addEventListener("click", generateInsight);
+
+  // chat
+  $("#chatFab").addEventListener("click", () => {
+    state.chatOpen = !state.chatOpen;
+    $("#chatPanel").classList.toggle("open", state.chatOpen);
+    if (state.chatOpen) {
+      $("#chatInput").focus();
+      $("#chatMsgs").scrollTop = $("#chatMsgs").scrollHeight;
+    }
+  });
+  $("#chatClose").addEventListener("click", () => {
+    state.chatOpen = false;
+    $("#chatPanel").classList.remove("open");
+  });
+  $("#chatSend").addEventListener("click", () => sendChat($("#chatInput").value));
+  $("#chatInput").addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendChat($("#chatInput").value);
+    }
+  });
+  const sugBox = $("#chatSug");
+  sugBox.innerHTML = SUGGESTIONS.map((s) => "<button>" + esc(s) + "</button>").join("");
+  sugBox.addEventListener("click", (e) => {
+    if (e.target.tagName === "BUTTON") sendChat(e.target.textContent);
+  });
+}
+
+/* ── navigation / boot ───────────────────────────────────────────────── */
+async function goTo(date) {
+  state.date = date;
+  state.openNote = null;
+  state.scrolledToNow = false;
+  $("#slotList").innerHTML = '<div class="skel" style="width:100%"></div><div class="skel" style="width:90%"></div><div class="skel" style="width:70%"></div>';
+  try {
+    await loadDay(date);
+    renderAll();
+    loadInsight();
+    if (date === istDateKey() && state.data.activeSlotId) {
+      setTimeout(() => {
+        const el = document.getElementById("slot-" + state.data.activeSlotId);
+        if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 200);
+    }
+  } catch (e) {
+    $("#slotList").innerHTML = '<div class="error-card"><p style="color:#fda4af">Couldn\'t load the day.</p><p style="font-size:11px;color:var(--faint)">This page needs the app server running (AI + database). Open it through the site URL, not as a local file.</p><button class="btn primary" onclick="location.reload()">Retry</button></div>';
+  }
+}
+
+function boot() {
+  bindEvents();
+  tickClock();
+  setInterval(tickClock, 1000);
+  loadChatHistory();
+  goTo(istDateKey());
+}
+document.addEventListener("DOMContentLoaded", boot);
+</script>
+</body>
+</html>
